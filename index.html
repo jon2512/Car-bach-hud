@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="cy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Car Bach Hud - Dysgu'r Gerdd</title>
+
+<!-- PWA / iOS Home Screen App -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Car Bach Hud">
+<meta name="theme-color" content="#E8F4FD">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%236EC6FF' width='100' height='100' rx='20'/><text y='68' x='50' text-anchor='middle' font-size='55'>🚗</text></svg>">
+<link rel="manifest" href="data:application/json,{%22name%22:%22Car%20Bach%20Hud%22,%22short_name%22:%22Car%20Hud%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23E8F4FD%22,%22theme_color%22:%22%236EC6FF%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%236EC6FF' width='100' height='100' rx='20'/><text y='68' x='50' text-anchor='middle' font-size='55'>🚗</text></svg>%22,%22sizes%22:%22any%22,%22type%22:%22image/svg+xml%22}]}">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sunshine: #FFD93D;
+    --sky: #6EC6FF;
+    --grass: #7BC74D;
+    --road: #4A4A5A;
+    --car-red: #FF6B6B;
+    --car-orange: #FFA94D;
+    --magic-purple: #B197FC;
+    --text-dark: #2D3436;
+    --bg: #E8F4FD;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Quicksand', sans-serif; background: var(--bg); min-height: 100vh; overflow-x: hidden; }
+
+  /* Scene */
+  .scene { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .cloud { position: absolute; background: white; border-radius: 50px; opacity: 0.6; animation: drift linear infinite; }
+  .cloud::before, .cloud::after { content: ''; position: absolute; background: white; border-radius: 50%; }
+  .cloud:nth-child(1) { width: 120px; height: 40px; top: 8%; left: -150px; animation-duration: 25s; }
+  .cloud:nth-child(1)::before { width: 50px; height: 50px; top: -25px; left: 20px; }
+  .cloud:nth-child(1)::after { width: 35px; height: 35px; top: -15px; left: 60px; }
+  .cloud:nth-child(2) { width: 90px; height: 30px; top: 15%; left: -120px; animation-duration: 35s; animation-delay: 5s; opacity: 0.4; }
+  .cloud:nth-child(2)::before { width: 40px; height: 40px; top: -20px; left: 15px; }
+  .cloud:nth-child(2)::after { width: 28px; height: 28px; top: -12px; left: 45px; }
+  .cloud:nth-child(3) { width: 100px; height: 35px; top: 5%; left: -130px; animation-duration: 30s; animation-delay: 12s; opacity: 0.5; }
+  .cloud:nth-child(3)::before { width: 45px; height: 45px; top: -22px; left: 18px; }
+  .cloud:nth-child(3)::after { width: 32px; height: 32px; top: -14px; left: 52px; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(calc(100vw + 200px)); } }
+
+  .road { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: var(--road); z-index: 0; }
+  .road::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 3px; background: repeating-linear-gradient(90deg, #FFD93D 0, #FFD93D 30px, transparent 30px, transparent 60px); transform: translateY(-50%); }
+  .magic-car { position: fixed; bottom: 50px; z-index: 1; font-size: 2.5rem; animation: drive 12s linear infinite; }
+  @keyframes drive {
+    0% { left: -60px; transform: scaleX(1); } 48% { left: calc(100vw + 60px); transform: scaleX(1); }
+    49%,50% { left: calc(100vw + 60px); transform: scaleX(-1); }
+    98% { left: -60px; transform: scaleX(-1); } 99%,100% { left: -60px; transform: scaleX(1); }
+  }
+
+  .container { position: relative; z-index: 2; max-width: 600px; margin: 0 auto; padding: 20px 16px 100px; }
+  .header { text-align: center; margin-bottom: 20px; animation: fadeInDown 0.6s ease-out; }
+  @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+  .header h1 { font-family: 'Baloo 2', cursive; font-size: 2.4rem; color: var(--text-dark); line-height: 1.1; margin-bottom: 4px; }
+  .header h1 .magic { color: var(--magic-purple); }
+  .header .subtitle { font-size: 1rem; color: #636e72; font-weight: 600; }
+
+  /* Audio bar */
+  .audio-bar {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: white; border-radius: 16px; padding: 10px 16px; margin-bottom: 6px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); flex-wrap: wrap;
+  }
+  .audio-bar label { font-size: 0.8rem; font-weight: 700; color: #636e72; }
+  .voice-select {
+    padding: 4px 10px; border: 2px solid #dfe6e9; border-radius: 20px;
+    font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 0.82rem;
+    background: white; color: var(--text-dark); cursor: pointer;
+  }
+  .ab-btn {
+    padding: 8px 16px; border: none; border-radius: 50px;
+    font-family: 'Baloo 2', cursive; font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; color: white; transition: all 0.2s ease;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .ab-btn:hover { transform: translateY(-1px); }
+  .ab-btn.play { background: var(--grass); box-shadow: 0 2px 8px rgba(123,199,77,0.3); }
+  .ab-btn.play.playing { background: var(--car-orange); }
+  .ab-btn.stop { background: var(--car-red); box-shadow: 0 2px 8px rgba(255,107,107,0.3); }
+
+  .tts-status { text-align: center; font-size: 0.75rem; color: #b2bec3; padding: 2px; min-height: 16px; margin-bottom: 8px; }
+  .tts-status.error { color: var(--car-red); }
+  .tts-status.info { color: var(--sky); }
+  .tts-status.loading { color: var(--car-orange); }
+
+  /* Play buttons */
+  .play-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border: none; border-radius: 50%;
+    background: linear-gradient(135deg, var(--sky), #4da8ff); color: white;
+    font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(110,198,255,0.3); flex-shrink: 0;
+  }
+  .play-btn:hover { transform: scale(1.15); }
+  .play-btn.playing { background: linear-gradient(135deg, var(--car-orange), #ff8c00); animation: pulse-glow 1s ease-in-out infinite; }
+  @keyframes pulse-glow { 0%,100% { box-shadow: 0 2px 8px rgba(255,140,0,0.3); } 50% { box-shadow: 0 2px 16px rgba(255,140,0,0.6); } }
+  .play-btn-big { width: 52px; height: 52px; font-size: 1.3rem; margin-top: 16px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap; }
+  .tab {
+    padding: 10px 18px; border: none; border-radius: 50px;
+    font-family: 'Baloo 2', cursive; font-size: 1rem; font-weight: 700;
+    cursor: pointer; transition: all 0.25s ease; background: white;
+    color: var(--road); box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .tab:hover { transform: translateY(-2px); }
+  .tab.active { background: var(--sky); color: white; }
+  .tab.active-green { background: var(--grass); color: white; }
+  .tab.active-purple { background: var(--magic-purple); color: white; }
+  .tab.active-orange { background: var(--car-orange); color: white; }
+
+  /* Verse card */
+  .verse-card {
+    background: white; border-radius: 20px; padding: 24px; margin-bottom: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06); animation: fadeIn 0.4s ease-out;
+    position: relative; overflow: hidden;
+  }
+  .verse-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+  .verse-card:nth-of-type(1)::before { background: var(--sky); }
+  .verse-card:nth-of-type(2)::before { background: var(--grass); }
+  .verse-card:nth-of-type(3)::before { background: var(--car-orange); }
+  .verse-card:nth-of-type(4)::before { background: var(--magic-purple); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .verse-label { font-family: 'Baloo 2', cursive; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #b2bec3; }
+  .verse-play-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .line-row { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .line-row .verse-line { flex: 1; }
+  .verse-line {
+    font-size: 1.2rem; line-height: 2; color: var(--text-dark); font-weight: 600;
+    cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: all 0.2s ease;
+  }
+  .verse-line:hover { background: #f0f7ff; }
+  .verse-line.speaking { background: #e8f5e9; border-left: 3px solid var(--grass); }
+
+  .translation-line { font-size: 0.9rem; color: #b2bec3; font-style: italic; line-height: 1.6; padding: 0 8px 0 50px; display: none; }
+  .translation-line.show { display: block; }
+  .translation-toggle { text-align: center; margin-bottom: 16px; }
+  .translation-toggle button {
+    padding: 6px 16px; border: 2px solid #dfe6e9; border-radius: 50px;
+    font-family: 'Quicksand', sans-serif; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; background: white; color: #636e72; transition: all 0.2s ease;
+  }
+  .translation-toggle button.on { border-color: var(--sky); color: var(--sky); background: #f0f7ff; }
+
+  /* Blanks */
+  .blank-word {
+    display: inline-block; min-width: 80px; border-bottom: 3px dashed var(--magic-purple);
+    text-align: center; padding: 2px 6px; margin: 0 2px; cursor: pointer;
+    transition: all 0.2s ease; color: transparent; position: relative; border-radius: 4px;
+  }
+  .blank-word::after { content: '?'; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); color: var(--magic-purple); font-weight: 700; font-size: 1.1rem; }
+  .blank-word.revealed { color: var(--grass); border-bottom-color: var(--grass); border-bottom-style: solid; font-weight: 700; }
+  .blank-word.revealed::after { display: none; }
+
+  /* Nav */
+  .verse-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px; }
+  .nav-btn {
+    width: 48px; height: 48px; border-radius: 50%; border: none; background: white;
+    font-size: 1.4rem; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;
+  }
+  .nav-btn:hover { transform: scale(1.1); }
+  .nav-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+  .verse-indicator { display: flex; gap: 8px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: #dfe6e9; transition: all 0.3s ease; }
+  .dot.active { background: var(--sky); transform: scale(1.3); }
+  .dot:nth-child(2).active { background: var(--grass); }
+  .dot:nth-child(3).active { background: var(--car-orange); }
+  .dot:nth-child(4).active { background: var(--magic-purple); }
+
+  /* Big verse */
+  .big-verse {
+    background: white; border-radius: 24px; padding: 32px 24px; text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08); min-height: 220px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    animation: slideIn 0.4s ease-out; position: relative; overflow: hidden;
+  }
+  .big-verse::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; }
+  .big-verse.v0::before { background: var(--sky); }
+  .big-verse.v1::before { background: var(--grass); }
+  .big-verse.v2::before { background: var(--car-orange); }
+  .big-verse.v3::before { background: var(--magic-purple); }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+  .big-verse .verse-line { font-size: 1.35rem; text-align: center; cursor: default; line-height: 2.2; }
+  .big-verse .verse-line:hover { background: transparent; }
+  .big-verse .verse-emoji { font-size: 2.5rem; margin-bottom: 12px; }
+
+  .reveal-btn {
+    display: block; margin: 20px auto 0; padding: 12px 32px; border: none; border-radius: 50px;
+    font-family: 'Baloo 2', cursive; font-size: 1.1rem; font-weight: 700;
+    cursor: pointer; color: white; background: var(--magic-purple);
+    box-shadow: 0 4px 16px rgba(177,151,252,0.4); transition: all 0.25s ease;
+  }
+  .reveal-btn:hover { transform: translateY(-2px) scale(1.02); }
+
+  /* Test */
+  .test-area { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); text-align: center; }
+  .test-area .prompt { font-family: 'Baloo 2', cursive; font-size: 1.3rem; color: var(--text-dark); margin-bottom: 16px; }
+  .hint-lines { text-align: left; margin: 16px 0; }
+  .hint-line { font-size: 1.15rem; line-height: 2; color: var(--text-dark); font-weight: 600; padding: 4px 8px; }
+  .hint-line.hidden-line {
+    color: transparent;
+    background: repeating-linear-gradient(90deg, #dfe6e9 0, #dfe6e9 20px, transparent 20px, transparent 24px);
+    background-size: 24px 3px; background-repeat: repeat-x; background-position: bottom;
+    border-radius: 4px; user-select: none; min-height: 36px;
+  }
+  .hint-line.peeked { color: var(--car-orange); background: #fff5e6; border-radius: 8px; }
+  .hint-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+  .hint-btn {
+    padding: 10px 16px; border: 2px solid; border-radius: 50px;
+    font-family: 'Quicksand', sans-serif; font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; background: white; transition: all 0.2s ease;
+  }
+  .hint-btn:hover { transform: translateY(-2px); }
+  .hint-btn.listen { border-color: var(--magic-purple); color: var(--magic-purple); }
+  .hint-btn.listen:hover { background: var(--magic-purple); color: white; }
+  .hint-btn.first-letter { border-color: var(--sky); color: var(--sky); }
+  .hint-btn.first-letter:hover { background: var(--sky); color: white; }
+  .hint-btn.full-line { border-color: var(--car-orange); color: var(--car-orange); }
+  .hint-btn.full-line:hover { background: var(--car-orange); color: white; }
+  .hint-btn.show-all { border-color: var(--grass); color: var(--grass); }
+  .hint-btn.show-all:hover { background: var(--grass); color: white; }
+
+  .progress-bar { height: 8px; background: #eee; border-radius: 4px; margin: 16px 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--grass), var(--sky)); border-radius: 4px; transition: width 0.4s ease; }
+  .stars-container { position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 100; }
+  .star { position: absolute; font-size: 2rem; animation: starBurst 1.5s ease-out forwards; }
+  @keyframes starBurst { 0% { opacity:1; transform:scale(0) rotate(0); } 50% { opacity:1; transform:scale(1.2) rotate(180deg); } 100% { opacity:0; transform:scale(0.5) rotate(360deg) translateY(-100px); } }
+  .mode-section { display: none; }
+  .mode-section.active { display: block; }
+
+  @media (max-width: 400px) {
+    .header h1 { font-size: 2rem; }
+    .verse-line, .big-verse .verse-line { font-size: 1.1rem; }
+    .tab { padding: 8px 12px; font-size: 0.9rem; }
+    .play-btn { width: 30px; height: 30px; font-size: 0.8rem; }
+    .translation-line { padding-left: 42px; }
+    .hint-btn { padding: 8px 12px; font-size: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="scene"><div class="cloud"></div><div class="cloud"></div><div class="cloud"></div></div>
+<div class="road"></div>
+<div class="magic-car">🚗✨</div>
+<div class="stars-container" id="starsContainer"></div>
+
+<div class="container">
+  <div class="header">
+    <h1>🚗 Car Bach <span class="magic">Hud</span> ✨</h1>
+    <div class="subtitle">Dysgu'r gerdd gyda Lia 🌟</div>
+  </div>
+
+  <div class="audio-bar">
+    <button class="ab-btn play" onclick="playFullPoem()" id="playAllBtn">🔊 Chwarae'r cyfan</button>
+    <label>🎤</label>
+    <select class="voice-select" id="voiceSelect">
+      <option value="benyw-de-pro">👩 Benyw Ddeheuol</option>
+      <option value="benyw-gogledd-pro">👩 Benyw Ogleddol</option>
+      <option value="gwryw-gogledd-pro">👨 Gwryw Gogleddol</option>
+    </select>
+    <button class="ab-btn stop" onclick="stopAll()">⏹ Stop</button>
+  </div>
+  <div class="tts-status" id="ttsStatus"></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchMode('read')" id="tab-read">📖 Darllen</button>
+    <button class="tab" onclick="switchMode('learn')" id="tab-learn">🎯 Dysgu</button>
+    <button class="tab" onclick="switchMode('practice')" id="tab-practice">🧩 Ymarfer</button>
+    <button class="tab" onclick="switchMode('test')" id="tab-test">⭐ Prawf</button>
+  </div>
+
+  <div class="mode-section active" id="mode-read">
+    <div class="translation-toggle">
+      <button onclick="toggleTranslation()" id="transBtn">🇬🇧 Show English</button>
+    </div>
+    <div class="verse-card" id="read-v0"></div>
+    <div class="verse-card" id="read-v1"></div>
+    <div class="verse-card" id="read-v2"></div>
+    <div class="verse-card" id="read-v3"></div>
+  </div>
+
+  <div class="mode-section" id="mode-learn">
+    <div class="verse-nav">
+      <button class="nav-btn" onclick="prevVerse()" id="prevBtn">⬅️</button>
+      <div class="verse-indicator">
+        <div class="dot active" id="dot-0"></div><div class="dot" id="dot-1"></div>
+        <div class="dot" id="dot-2"></div><div class="dot" id="dot-3"></div>
+      </div>
+      <button class="nav-btn" onclick="nextVerse()" id="nextBtn">➡️</button>
+    </div>
+    <div class="big-verse v0" id="learnVerse"></div>
+  </div>
+
+  <div class="mode-section" id="mode-practice">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div id="practiceCards"></div>
+    <button class="reveal-btn" onclick="resetPractice()">🔄 Dechrau eto!</button>
+  </div>
+
+  <div class="mode-section" id="mode-test">
+    <div class="verse-nav">
+      <button class="nav-btn" onclick="prevTestVerse()" id="prevTestBtn">⬅️</button>
+      <div class="verse-indicator">
+        <div class="dot active" id="tdot-0"></div><div class="dot" id="tdot-1"></div>
+        <div class="dot" id="tdot-2"></div><div class="dot" id="tdot-3"></div>
+      </div>
+      <button class="nav-btn" onclick="nextTestVerse()" id="nextTestBtn">➡️</button>
+    </div>
+    <div class="test-area" id="testArea"></div>
+  </div>
+</div>
+
+<script>
+// ===================== POEM DATA =====================
+const verses = [
+  {
+    emoji: '🏠🤫', label: 'Pennill 1',
+    lines: ["Dydy'r teulu ddim yn gwybod,","ond mae gen i gar bach hud,","rwy'n gallu'i yrru ddydd neu nos","a mynd i bellter byd."],
+    english: ["The family doesn't know,","but I have a little magic car,","I can drive it day or night","and go far across the world."]
+  },
+  {
+    emoji: '⛽❌', label: 'Pennill 2',
+    lines: ["Does dim angen drop o betrol","er mwyn cychwyn ar y daith,","a does dim angen pasio'r prawf","na gwisgo gwregys chwaith."],
+    english: ["There's no need for a drop of petrol","to start on the journey,","and there's no need to pass the test","or wear a seatbelt either."]
+  },
+  {
+    emoji: '🛞💨', label: 'Pennill 3',
+    lines: ["Mae'n brêcio a chyflymu,","a throi i'r chwith a'r dde,","mae'n barod iawn i fynd â fi","yn wir i unrhyw le."],
+    english: ["It brakes and accelerates,","and turns left and right,","it's very ready to take me","truly to any place."]
+  },
+  {
+    emoji: '👻🎉', label: 'Pennill 4',
+    lines: ["Er mai ond un sydd ynddo","mae'r car yn llawn o sbri,","ac yn hollol anweledig","i bawb trwy'r byd . . . ond fi!"],
+    english: ["Although there's only one in it","the car is full of fun,","and completely invisible","to everyone in the world . . . but me!"]
+  }
+];
+
+// ===================== TTS ENGINE - Bangor Uni Coqui Welsh TTS =====================
+const TECHIAITH_API = 'https://api.techiaith.cymru/speak/v3/';
+const TECHIAITH_KEY = 'bf23ee82-0dbe-4d20-ab4b-5e27f8d5593a';
+
+const audioCache = {};
+let currentAudio = null;
+let aborted = false;
+
+function getVoice() {
+  return document.getElementById('voiceSelect').value;
+}
+
+function setStatus(msg, type = '') {
+  const el = document.getElementById('ttsStatus');
+  el.textContent = msg;
+  el.className = 'tts-status ' + type;
+  if (type !== 'error') setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+async function fetchWelshTTS(text) {
+  const voice = getVoice();
+  const cacheKey = text + '|' + voice;
+  if (audioCache[cacheKey]) return audioCache[cacheKey];
+
+  setStatus('⏳ Yn llwytho sain...', 'loading');
+
+  try {
+    const params = new URLSearchParams({
+      text: text,
+      speaker_id: voice,
+      api_key: TECHIAITH_KEY,
+      model: 'cy'
+    });
+
+    const resp = await fetch(`${TECHIAITH_API}?${params.toString()}`);
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`API ${resp.status}: ${errText}`);
+    }
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    audioCache[cacheKey] = url;
+    setStatus('');
+    return url;
+  } catch (err) {
+    console.error('Techiaith TTS error:', err);
+
+    // Fallback to browser speech synthesis
+    setStatus('⚠️ API error - yn defnyddio llais y porwr', 'error');
+    return null;
+  }
+}
+
+function stopAll() {
+  aborted = true;
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  // Also stop browser TTS fallback
+  window.speechSynthesis.cancel();
+  document.querySelectorAll('.speaking').forEach(el => el.classList.remove('speaking'));
+  document.querySelectorAll('.play-btn.playing').forEach(el => el.classList.remove('playing'));
+  const btn = document.getElementById('playAllBtn');
+  btn.classList.remove('playing');
+  btn.textContent = '🔊 Chwarae\'r cyfan';
+  setStatus('');
+}
+
+function playAudioUrl(url) {
+  return new Promise((resolve) => {
+    const audio = new Audio(url);
+    currentAudio = audio;
+    audio.onended = () => { currentAudio = null; resolve(true); };
+    audio.onerror = () => { currentAudio = null; resolve(false); };
+    audio.play().catch(() => { currentAudio = null; resolve(false); });
+  });
+}
+
+// Fallback: browser speech synthesis
+function speakBrowser(text) {
+  return new Promise((resolve) => {
+    const synth = window.speechSynthesis;
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'cy-GB';
+    // Try to find a Welsh voice
+    const voices = synth.getVoices();
+    const cyVoice = voices.find(v => v.lang.startsWith('cy'));
+    if (cyVoice) utt.voice = cyVoice;
+    utt.rate = 0.9;
+    utt.onend = () => resolve(true);
+    utt.onerror = () => resolve(false);
+    synth.speak(utt);
+  });
+}
+
+// Unified speak function: try API first, fallback to browser
+async function speakText(text, btnEl, lineEl) {
+  if (aborted) return;
+  if (btnEl) btnEl.classList.add('playing');
+  if (lineEl) lineEl.classList.add('speaking');
+
+  const url = await fetchWelshTTS(text);
+
+  if (url && !aborted) {
+    await playAudioUrl(url);
+  } else if (!aborted) {
+    // Browser fallback
+    await speakBrowser(text);
+  }
+
+  if (btnEl) btnEl.classList.remove('playing');
+  if (lineEl) lineEl.classList.remove('speaking');
+}
+
+// Play a single line
+async function playLine(vi, li, btnEl) {
+  stopAll();
+  aborted = false;
+  const text = verses[vi].lines[li];
+  const lineEl = btnEl ? btnEl.closest('.line-row')?.querySelector('.verse-line') : null;
+  await speakText(text, btnEl, lineEl);
+}
+
+// Play a whole verse line by line
+async function playVerse(vi, btnEl) {
+  stopAll();
+  aborted = false;
+  if (btnEl) btnEl.classList.add('playing');
+
+  const verse = verses[vi];
+  for (let li = 0; li < verse.lines.length; li++) {
+    if (aborted) break;
+
+    // Find line element for highlighting
+    const lineEls = document.querySelectorAll(`#read-v${vi} .verse-line, #learnVerse .verse-line`);
+    const lineEl = lineEls[li] || null;
+    if (lineEl) lineEl.classList.add('speaking');
+
+    const url = await fetchWelshTTS(verse.lines[li]);
+    if (aborted) { if (lineEl) lineEl.classList.remove('speaking'); break; }
+
+    if (url) {
+      await playAudioUrl(url);
+    } else {
+      await speakBrowser(verse.lines[li]);
+    }
+
+    if (lineEl) lineEl.classList.remove('speaking');
+    if (!aborted) await new Promise(r => setTimeout(r, 250));
+  }
+
+  if (btnEl) btnEl.classList.remove('playing');
+}
+
+// Play entire poem
+async function playFullPoem() {
+  stopAll();
+  aborted = false;
+  const btn = document.getElementById('playAllBtn');
+  btn.classList.add('playing');
+  btn.textContent = '🔊 Yn chwarae...';
+
+  for (let vi = 0; vi < verses.length; vi++) {
+    for (let li = 0; li < verses[vi].lines.length; li++) {
+      if (aborted) break;
+      const url = await fetchWelshTTS(verses[vi].lines[li]);
+      if (aborted) break;
+      if (url) {
+        await playAudioUrl(url);
+      } else {
+        await speakBrowser(verses[vi].lines[li]);
+      }
+      if (!aborted) await new Promise(r => setTimeout(r, 200));
+    }
+    if (aborted) break;
+    if (!aborted) await new Promise(r => setTimeout(r, 600));
+  }
+
+  btn.classList.remove('playing');
+  btn.textContent = '🔊 Chwarae\'r cyfan';
+  if (!aborted) celebrateStars();
+}
+
+// ===================== STATE =====================
+let currentVerse = 0;
+let currentTestVerse = 0;
+let showTranslation = false;
+let blanksRevealed = 0;
+let totalBlanks = 0;
+
+// ===================== READ MODE =====================
+function renderReadMode() {
+  verses.forEach((verse, vi) => {
+    const card = document.getElementById(`read-v${vi}`);
+    let html = `<div class="verse-play-row">
+      <div class="verse-label">${verse.emoji} ${verse.label}</div>
+      <button class="play-btn" onclick="playVerse(${vi}, this)" title="Gwrando ar y pennill">🔊</button>
+    </div>`;
+    verse.lines.forEach((line, li) => {
+      html += `<div class="line-row">
+        <button class="play-btn" style="width:30px;height:30px;font-size:0.8rem" onclick="playLine(${vi},${li},this)" title="Gwrando">▶</button>
+        <div class="verse-line" onclick="playLine(${vi},${li},this.previousElementSibling)">${line}</div>
+      </div>`;
+      html += `<div class="translation-line" id="trans-${vi}-${li}">${verse.english[li]}</div>`;
+    });
+    card.innerHTML = html;
+  });
+}
+
+function toggleTranslation() {
+  showTranslation = !showTranslation;
+  const btn = document.getElementById('transBtn');
+  btn.textContent = showTranslation ? '🇬🇧 Hide English' : '🇬🇧 Show English';
+  btn.classList.toggle('on', showTranslation);
+  document.querySelectorAll('.translation-line').forEach(el => el.classList.toggle('show', showTranslation));
+}
+
+// ===================== LEARN MODE =====================
+function renderLearnVerse() {
+  const v = verses[currentVerse];
+  const c = document.getElementById('learnVerse');
+  c.className = `big-verse v${currentVerse}`;
+  let html = `<div class="verse-emoji">${v.emoji}</div>`;
+  v.lines.forEach(l => { html += `<div class="verse-line">${l}</div>`; });
+  html += `<button class="play-btn play-btn-big" onclick="playVerse(${currentVerse},this)">🔊</button>`;
+  c.innerHTML = html;
+  c.style.animation = 'none'; c.offsetHeight; c.style.animation = 'slideIn 0.4s ease-out';
+  document.querySelectorAll('#mode-learn .dot').forEach((d,i) => d.classList.toggle('active', i===currentVerse));
+  document.getElementById('prevBtn').disabled = currentVerse === 0;
+  document.getElementById('nextBtn').disabled = currentVerse === 3;
+}
+function nextVerse() { if (currentVerse < 3) { currentVerse++; renderLearnVerse(); } }
+function prevVerse() { if (currentVerse > 0) { currentVerse--; renderLearnVerse(); } }
+
+// ===================== PRACTICE MODE =====================
+function renderPractice() {
+  blanksRevealed = 0; totalBlanks = 0;
+  const container = document.getElementById('practiceCards');
+  let html = '';
+  verses.forEach((verse, vi) => {
+    html += `<div class="verse-card"><div class="verse-play-row">
+      <div class="verse-label">${verse.emoji} ${verse.label}</div>
+      <button class="play-btn" onclick="playVerse(${vi},this)">🔊</button>
+    </div>`;
+    verse.lines.forEach((line) => {
+      const words = line.split(' ');
+      let lh = '<div class="verse-line" style="cursor:default">';
+      words.forEach((word, wi) => {
+        if ((wi + vi) % 3 === 0 && wi > 0) {
+          totalBlanks++;
+          lh += `<span class="blank-word" onclick="revealWord(this)">${word}</span> `;
+        } else { lh += word + ' '; }
+      });
+      lh += '</div>';
+      html += lh;
+    });
+    html += '</div>';
+  });
+  container.innerHTML = html;
+  updateProgress();
+}
+function revealWord(el) {
+  if (!el.classList.contains('revealed')) {
+    el.classList.add('revealed');
+    blanksRevealed++;
+    updateProgress();
+    if (blanksRevealed === totalBlanks) celebrateStars();
+  }
+}
+function updateProgress() {
+  document.getElementById('progressFill').style.width = (totalBlanks > 0 ? (blanksRevealed/totalBlanks)*100 : 0) + '%';
+}
+function resetPractice() { renderPractice(); }
+
+// ===================== TEST MODE =====================
+function renderTestVerse() {
+  const v = verses[currentTestVerse];
+  const area = document.getElementById('testArea');
+  let html = `<div class="prompt">${v.emoji} ${v.label} - Wyt ti'n cofio?</div><div class="hint-lines">`;
+  v.lines.forEach((line, li) => {
+    const fl = line.split(' ').map(w => w[0]).join('… ') + '…';
+    html += `<div class="hint-line hidden-line" id="test-${currentTestVerse}-${li}" data-line="${line}" data-first="${fl}">${line}</div>`;
+  });
+  html += `</div><div class="hint-btns">
+    <button class="hint-btn listen" onclick="playVerse(${currentTestVerse},null)">🔊 Gwrando</button>
+    <button class="hint-btn first-letter" onclick="showFirstLetters()">🔤 Llythrennau</button>
+    <button class="hint-btn full-line" onclick="peekNextLine()">👀 Sbec</button>
+    <button class="hint-btn show-all" onclick="showAllTestLines()">🌟 Dangos</button>
+  </div>`;
+  area.innerHTML = html;
+  for (let i = 0; i < 4; i++) document.getElementById(`tdot-${i}`).classList.toggle('active', i===currentTestVerse);
+  document.getElementById('prevTestBtn').disabled = currentTestVerse === 0;
+  document.getElementById('nextTestBtn').disabled = currentTestVerse === 3;
+}
+function showFirstLetters() {
+  verses[currentTestVerse].lines.forEach((_, li) => {
+    const el = document.getElementById(`test-${currentTestVerse}-${li}`);
+    if (el.classList.contains('hidden-line')) {
+      el.textContent = el.dataset.first;
+      el.classList.remove('hidden-line');
+      el.style.color = '#6EC6FF'; el.style.fontWeight = '600';
+    }
+  });
+}
+function peekNextLine() {
+  for (let li = 0; li < 4; li++) {
+    const el = document.getElementById(`test-${currentTestVerse}-${li}`);
+    if (el && (el.classList.contains('hidden-line') || el.textContent === el.dataset.first)) {
+      el.textContent = el.dataset.line;
+      el.classList.remove('hidden-line'); el.classList.add('peeked');
+      return;
+    }
+  }
+}
+function showAllTestLines() {
+  verses[currentTestVerse].lines.forEach((_, li) => {
+    const el = document.getElementById(`test-${currentTestVerse}-${li}`);
+    el.textContent = el.dataset.line;
+    el.classList.remove('hidden-line'); el.classList.add('peeked');
+  });
+  celebrateStars();
+}
+function nextTestVerse() { if (currentTestVerse < 3) { currentTestVerse++; renderTestVerse(); } }
+function prevTestVerse() { if (currentTestVerse > 0) { currentTestVerse--; renderTestVerse(); } }
+
+// ===================== CELEBRATION =====================
+function celebrateStars() {
+  const c = document.getElementById('starsContainer');
+  const e = ['⭐','🌟','✨','💫','🎉','🚗'];
+  for (let i = 0; i < 20; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.textContent = e[Math.floor(Math.random()*e.length)];
+    s.style.left = Math.random()*100+'vw';
+    s.style.top = Math.random()*80+'vh';
+    s.style.animationDelay = Math.random()*0.5+'s';
+    c.appendChild(s);
+    setTimeout(() => s.remove(), 2000);
+  }
+}
+
+// ===================== MODE SWITCH =====================
+function switchMode(mode) {
+  stopAll();
+  document.querySelectorAll('.mode-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active','active-green','active-purple','active-orange'));
+  document.getElementById(`mode-${mode}`).classList.add('active');
+  const colors = { read:'active', learn:'active-green', practice:'active-orange', test:'active-purple' };
+  document.getElementById(`tab-${mode}`).classList.add(colors[mode]);
+  if (mode === 'learn') renderLearnVerse();
+  if (mode === 'practice') renderPractice();
+  if (mode === 'test') { currentTestVerse = 0; renderTestVerse(); }
+}
+
+// ===================== INIT =====================
+renderReadMode();
+renderLearnVerse();
+</script>
+</body>
+</html>
